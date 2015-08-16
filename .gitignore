@@ -1,0 +1,16 @@
+# Virtual environment
+/[Ii]nclude
+/[Ll]ib
+/Scripts
+/bin
+/local
+/man
+/share
+
+# Pip
+pip-selfcheck.json
+*.whl
+
+# Python
+__pycache__/
+*.py[cod]
