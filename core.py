@@ -1,6 +1,9 @@
 import copy
 import itertools
 
+import numpy as np
+from scipy.sparse import coo_matrix, csc_matrix
+
 
 class Function:
 
@@ -73,3 +76,48 @@ class Node(list):
     def _connect_full(self, outputs, inputs):
         for output in outputs:
             output.outgoing += inputs
+
+
+class Network:
+
+    def __init__(self, *args, **kwargs):
+        self.nodes = list(Node(*args).get_leaves())
+        self._init_nodes()
+        self._init_edges()
+        self._init_functions()
+
+    def _init_nodes(self):
+        # TODO: Take per neuron bias into account
+        shape = len(self.nodes)
+        # Index of activation function inside self.functions
+        self.types = np.zeros(shape, dtype=np.int8)
+        # Current activation vector of the neurons
+        self.current = np.zeros(shape, dtype=np.float32)
+        # Previous activation vector of the neurons
+        self.previous = np.zeros(shape, dtype=np.float32)
+
+    def _init_functions(self):
+        # Ordered list of activation functions used in this network
+        self.functions = list(set(node.function for node in self.nodes))
+        assert len(self.functions) < 256, 'Too many activation functions'
+        for index, node in enumerate(self.nodes):
+            self.types[index] = self.functions.index(node.function)
+
+    def _init_weights(self, scale=0.1):
+        shape = (len(self.nodes), len(self.nodes))
+        # Sparse matrix of weights between the neurons
+        self.weights = coo_matrix(shape, dtype=np.float32)
+        # Sparse matrix of derivatives with respect to the weights
+        self.gradient = coo_matrix(shape, dtype=np.float32)
+        # Initialize used weights. All other weights are zero in sparse matrix
+        # representation and thus don't affect products of the activation
+        # vector and the weight matrix.
+        for i, source in enumerate(self.nodes):
+            for target in source.outgoing:
+                j = self.nodes.index(target)
+                self.weights[i, j] = scale * np.random.normal()
+                # TODO: Zero is correct but doesn't work with sparse matrix
+                self.gradient[i, j] = 0.0000001
+        # Compress matrices into efficient formats
+        self.weights = csc_matrix(self.weights)
+        self.gradient = csc_matrix(self.gradient)
