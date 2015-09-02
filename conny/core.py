@@ -1,8 +1,11 @@
 import copy
 import itertools
+import inspect
 
 import numpy as np
 from scipy.sparse import coo_matrix, csc_matrix
+
+from conny import utility
 
 
 class Function:
@@ -20,20 +23,8 @@ class Function:
 class Node(list):
 
     def __init__(self, *args, **kwargs):
-        flat_args = list(itertools.chain(*args))
-        # Construct from activation function
-        if len(args) == 1 and isinstance(args[0], Function):
-            self.function = args[0]
-            self.outgoing = []
-        # Construct from one or more lists of children
-        elif all(isinstance(flat_args, Node) for arg in args):
-            self += copy.deepcopy(args)
-        else:
-            raise ValueError('No matching constructor')
-        # Whether to consider this node if someone connects to the parent.
-        self.input = kwargs.get('input', False) or kwargs.get('inout', False)
-        # Whether to consider this node if the parent connects to someone.
-        self.output = kwargs.get('output', False) or kwargs.get('inout', False)
+        self._parse_args(args)
+        self._parse_kwargs(kwargs)
 
     def first(self):
         return self[0]
@@ -58,12 +49,33 @@ class Node(list):
         else:
             raise NotImplemented
 
-    def get_leafs(self):
+    def get_leaves(self):
         if len(self):
             for child in self:
-                yield from child.get_leafs()
+                yield from child.get_leaves()
         else:
             yield self
+
+    def _parse_args(self, args):
+        # Construct from activation function
+        if len(args) == 1 and utility.implements(args[0], Function):
+            self.function = args[0]
+            self.outgoing = []
+            return
+        # Construct from one or more lists of children
+        flat_args = itertools.chain(*args)
+        print(list(flat_args))
+        if all(isinstance(arg, Node) for arg in flat_args):
+            self += copy.deepcopy(flat_args)
+            return
+        raise ValueError('No matching constructor')
+
+    def _parse_kwargs(self, kwargs):
+        inout = kwargs.get('inout', False)
+        # Whether to consider this node if someone connects to the parent.
+        self.input = kwargs.get('input', False) or inout
+        # Whether to consider this node if the parent connects to someone.
+        self.output = kwargs.get('output', False) or inout
 
     def _filter_leaves(self, attibute, value):
         if len(self):
@@ -77,6 +89,8 @@ class Node(list):
         for output in outputs:
             output.outgoing += inputs
 
+    def __repr__(self):
+        return '<Node>'
 
 class Network:
 
@@ -96,14 +110,7 @@ class Network:
         # Previous activation vector of the neurons
         self.previous = np.zeros(shape, dtype=np.float32)
 
-    def _init_functions(self):
-        # Ordered list of activation functions used in this network
-        self.functions = list(set(node.function for node in self.nodes))
-        assert len(self.functions) < 256, 'Too many activation functions'
-        for index, node in enumerate(self.nodes):
-            self.types[index] = self.functions.index(node.function)
-
-    def _init_weights(self, scale=0.1):
+    def _init_edges(self, scale=0.1):
         shape = (len(self.nodes), len(self.nodes))
         # Sparse matrix of weights between the neurons
         self.weights = coo_matrix(shape, dtype=np.float32)
@@ -120,4 +127,12 @@ class Network:
                 self.gradient[i, j] = 0.0000001
         # Compress matrices into efficient formats
         self.weights = csc_matrix(self.weights)
+
+    def _init_functions(self):
+        # Ordered list of activation functions used in this network
+        self.functions = list(set(node.function for node in self.nodes))
+        assert len(self.functions) < 256, 'Too many activation functions'
+        for index, node in enumerate(self.nodes):
+            self.types[index] = self.functions.index(node.function)
+
         self.gradient = csc_matrix(self.gradient)

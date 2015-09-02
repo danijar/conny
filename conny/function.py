@@ -1,6 +1,6 @@
 import numpy as np
 
-from core import Function
+from conny.core import Function
 
 
 class Constant(Function):
