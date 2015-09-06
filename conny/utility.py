@@ -14,4 +14,3 @@ def implements(argument, interface):
     if not inspect.isclass(argument):
         return False
     return issubclass(argument, interface)
-

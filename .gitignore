@@ -1,3 +1,6 @@
+# Linux
+*.swp
+
 # Virtual environment
 /[Ii]nclude
 /[Ll]ib

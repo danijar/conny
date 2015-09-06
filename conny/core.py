@@ -26,14 +26,18 @@ class Node(list):
         self._parse_args(args)
         self._parse_kwargs(kwargs)
 
+    def __repr__(self):
+        length = len(self)
+        return '<Node children={length}>'.format(**locals())
+
+    def __mul__(self, repeat):
+        return list(copy.deepcopy(self) for _ in range(repeat))
+
     def first(self):
         return self[0]
 
     def last(self):
         return self[-1]
-
-    def __mul__(self, repeat):
-        return list(copy.deepcopy(self) for _ in range(repeat))
 
     def connect(self, target, strategy='full'):
         """
@@ -63,10 +67,10 @@ class Node(list):
             self.outgoing = []
             return
         # Construct from one or more lists of children
-        flat_args = itertools.chain(*args)
-        print(list(flat_args))
-        if all(isinstance(arg, Node) for arg in flat_args):
-            self += copy.deepcopy(flat_args)
+        if len(args) and isinstance(args[0], list):
+            args = sum(args, [])
+        if all(isinstance(arg, Node) for arg in args):
+            self += copy.deepcopy(args)
             return
         raise ValueError('No matching constructor')
 
@@ -89,8 +93,6 @@ class Node(list):
         for output in outputs:
             output.outgoing += inputs
 
-    def __repr__(self):
-        return '<Node>'
 
 class Network:
 
