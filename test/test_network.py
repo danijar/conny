@@ -3,31 +3,12 @@ import pytest
 from conny.core import Node, Network
 from conny.function import Constant, Sum, Product, Sigmoid
 from conny.utility import pairwise, connect_layers
-
-
-@pytest.fixture(params=[1, 2, 7, 13])
-def layers(request):
-    node = Node(Constant, inout=True)
-    layer = Node(node * request.param)
-    layers = Node(layer * request.param)
-    layers.amount = request.param * request.param
-    return layers
-
-
-class TestNode:
-
-    def test_from_empty_child_list(self):
-        with pytest.raises(ValueError):
-            Node([])
-
-    def test_leaves_all_outgoing(self, layers):
-        leaves = layers.get_leaves()
-        assert all(hasattr(node, 'outgoing') for node in leaves)
+from test.fixtures import layers
 
 
 class TestNetwork:
 
-    def test_count(self, layers):
+    def test_counts(self, layers):
         network = Network(layers)
         assert len(network.current) == layers.amount
         assert len(network.previous) == layers.amount
@@ -35,7 +16,7 @@ class TestNetwork:
         assert network.weights.shape == (layers.amount, layers.amount)
         assert network.gradient.shape == (layers.amount, layers.amount)
 
-    def test_connections_1(self):
+    def test_edges_layers(self):
         # ->(0)->(2)->(4)->
         #      \/^  \/^
         #      /\v  /\v
@@ -52,7 +33,7 @@ class TestNetwork:
             (0, 2), (0, 3), (1, 2), (1, 3),
             (2, 4), (2, 5), (3, 4), (3, 5)]
 
-    def test_connections_2(self):
+    def test_edges_cell(self):
         # -> ((0)->(1)->(2)) -> ((3)->(4)->(5)) ->
         input_ = Node(Constant, input=True)
         hidden = Node(Constant)
